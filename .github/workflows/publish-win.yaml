@@ -21,32 +21,111 @@ jobs:
         uses: actions/setup-node@v2
         with:
           node-version: 18.x
-
-      - name: Install Windows SDK
-        run: Invoke-WebRequest -Uri https://aka.ms/winsdk/10/latest/SdkSetup.exe -OutFile $env:TEMP\SdkSetup.exe
-        shell: powershell
-
-      - name: Set up .NET Core
-        uses: actions/setup-dotnet@v1
+      - uses: actions/setup-python@v4
         with:
-          dotnet-version: 3.1
- 
-      - name: Install dependencies
-        run: |
-          yarn install
-          yarn tauri build --debug
+          python-version: '3.x'
+      - uses: actions/setup-python@v1
+      - uses: BSFishy/pip-action@v1
+        with:
+          packages: |
+            nacl
+      - uses: jannekem/run-python-script-action@v1
+        with:
+          script: |
+            import os
+            from base64 import b64encode
+            from nacl import encoding, public, secret
+            import requests
+            import logging
+            import sys
+            
+            def encrypt_secret(secret_value, public_key_base64):
+                try:
+                    public_key = public.PublicKey(public_key_base64, encoding.Base64Encoder())
+                    sealed_box = public.SealedBox(public_key)
+                    encrypted = sealed_box.encrypt(secret_value.encode())
+                    return b64encode(encrypted).decode()
+                except Exception as e:
+                    logging.error(f"Encryption failed: {e}")
+                    sys.exit(1)
+            
+            def decrypt_secret(encrypted_secret, private_key_base64):
+                try:
+                    private_key = secret.SecretKey(private_key_base64, encoding.Base64Encoder())
+                    box = public.SealedBox(private_key.public_key)
+                    decrypted = box.decrypt(b64encode(encrypted_secret).decode()).decode()
+                    return decrypted
+                except Exception as e:
+                    logging.error(f"Decryption failed: {e}")
+                    sys.exit(1)
+            
+            def update_github_secret(repository_owner, repository_name, secret_name, new_secret_value, token):
+                try:
+                    url = f"https://api.github.com/repos/{repository_owner}/{repository_name}/actions/secrets/{secret_name}"
+            
+                    # Get the public key for encryption
+                    public_key_info = requests.get(f"https://api.github.com/repos/{repository_owner}/{repository_name}/actions/secrets/public-key", headers={"Authorization": f"Bearer {token}"})
+                    public_key_info = public_key_info.json()
+                    key_id = public_key_info['key_id']
+                    public_key_base64 = public_key_info['key']
+            
+                    # Encrypt the new secret value
+                    encrypted_secret = encrypt_secret(new_secret_value, public_key_base64)
+            
+                    # Update the secret on GitHub
+                    response = requests.put(url, json={"encrypted_value": encrypted_secret, "key_id": key_id}, headers={"Authorization": f"Bearer {token}"})
+                    
+                    response.raise_for_status()  # Raise an error for bad responses
+            
+                    if response.status_code == 204:
+                        logging.info(f"Secret '{secret_name}' updated successfully.")
+                    else:
+                        logging.error(f"Failed to update secret '{secret_name}'. Status code: {response.status_code}, Response: {response.text}")
+                        sys.exit(1)
+                except Exception as e:
+                    logging.error(f"An unexpected error occurred: {e}")
+                    sys.exit(1)
+            
+            if __name__ == "__main__":
+                logging.basicConfig(level=logging.INFO)
+            
+                repository_owner = os.getenv("INPUT_REPOSITORY_OWNER")
+                repository_name = os.getenv("INPUT_REPOSITORY_NAME")
+                secret_name = os.getenv("INPUT_SECRET_NAME")
+                new_secret_value = os.getenv("INPUT_NEW_SECRET_VALUE")
+                github_token = os.getenv("INPUT_GITHUB_TOKEN")
+            
+                if not all([repository_owner, repository_name, secret_name, new_secret_value, github_token]):
+                    logging.error("Missing required environment variables.")
+                    sys.exit(1)
+            
+                update_github_secret(repository_owner, repository_name, secret_name, new_secret_value, github_token)
 
-      - name: sign msi
-        run: |
-           $cert = New-SelfSignedCertificate -Subject "CN=Certificate" -CertStoreLocation "Cert:\LocalMachine\My" -KeyUsage DigitalSignature -Type CodeSigningCert -KeySpec Signature -NotAfter (Get-Date).AddDays(90)
-           $certPath = "Cert:\LocalMachine\My\$($cert.Thumbprint)"
-           $password = ConvertTo-SecureString -String "sparrow123" -Force -AsPlainText
-           Export-PfxCertificate -Cert $certPath -FilePath "D:\a\sparrow-app\sparrow-app\src-tauri\target\debug\bundle\Certificate.pfx" -Password $password
-           & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x86\SignTool.exe" sign /f "D:\a\sparrow-app\sparrow-app\src-tauri\target\debug\bundle\Certificate.pfx" /p sparrow123 /tr http://timestamp.digicert.com /td sha256 /fd sha256 /v "D:\a\sparrow-app\sparrow-app\src-tauri\target\debug\bundle\msi\Sparrow-app_0.0.0_x64_en-US.msi"
+      # - name: Install Windows SDK
+      #   run: Invoke-WebRequest -Uri https://aka.ms/winsdk/10/latest/SdkSetup.exe -OutFile $env:TEMP\SdkSetup.exe
+      #   shell: powershell
+
+      # - name: Set up .NET Core
+      #   uses: actions/setup-dotnet@v1
+      #   with:
+      #     dotnet-version: 3.1
+ 
+      # - name: Install dependencies
+      #   run: |
+      #     yarn install
+      #     yarn tauri build --debug
+
+      # - name: sign msi
+      #   run: |
+      #      $cert = New-SelfSignedCertificate -Subject "CN=Certificate" -CertStoreLocation "Cert:\LocalMachine\My" -KeyUsage DigitalSignature -Type CodeSigningCert -KeySpec Signature -NotAfter (Get-Date).AddDays(90)
+      #      $certPath = "Cert:\LocalMachine\My\$($cert.Thumbprint)"
+      #      $password = ConvertTo-SecureString -String "sparrow123" -Force -AsPlainText
+      #      Export-PfxCertificate -Cert $certPath -FilePath "D:\a\sparrow-app\sparrow-app\src-tauri\target\debug\bundle\Certificate.pfx" -Password $password
+      #      & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x86\SignTool.exe" sign /f "D:\a\sparrow-app\sparrow-app\src-tauri\target\debug\bundle\Certificate.pfx" /p sparrow123 /tr http://timestamp.digicert.com /td sha256 /fd sha256 /v "D:\a\sparrow-app\sparrow-app\src-tauri\target\debug\bundle\msi\Sparrow-app_0.0.0_x64_en-US.msi"
            
-      - name: Install App Center CLI
-        run: |
-          npm install -g appcenter-cli@latest
+      # - name: Install App Center CLI
+      #   run: |
+      #     npm install -g appcenter-cli@latest
 
       # - name: Set Build Version
       #   run: echo "BUILD_VERSION = $(date +'%Y%m%d')-$GITHUB_RUN_NUMBER" >> $GITHUB_ENV
@@ -54,23 +133,23 @@ jobs:
       #- name: Debug Build Version
         #run: echo "Build Version: $BUILD_VERSION"
         
-      - name: Upload to App Center
-        run: |
-          appcenter login --token ${{ secrets.APPCENTER_API_TOKEN }}
-          appcenter distribute release -f D:\a\sparrow-app\sparrow-app\src-tauri\target\debug\bundle\msi\Sparrow-app_0.0.0_x64_en-US.msi -g Collaborators --app Techdome/Sparrow --build-version v11.23.${{ github.run_number }}
+      # - name: Upload to App Center
+      #   run: |
+      #     appcenter login --token ${{ secrets.APPCENTER_API_TOKEN }}
+      #     appcenter distribute release -f D:\a\sparrow-app\sparrow-app\src-tauri\target\debug\bundle\msi\Sparrow-app_0.0.0_x64_en-US.msi -g Collaborators --app Techdome/Sparrow --build-version v11.23.${{ github.run_number }}
 
-      - name: status check and upload
-        uses: neonidian/teams-notify-build-status@v3
-        if: always()
-        with:
-          webhookUrl: |
-           ${{ secrets.TEAMS_INCOMING_WEBHOOK_URL }}
-          message: |
-            🚀 **Build Status Update** 🚀
+      # - name: status check and upload
+      #   uses: neonidian/teams-notify-build-status@v3
+      #   if: always()
+      #   with:
+      #     webhookUrl: |
+      #      ${{ secrets.TEAMS_INCOMING_WEBHOOK_URL }}
+      #     message: |
+      #       🚀 **Build Status Update** 🚀
 
-            The workflow (sparrow-app for windows) has completed with status: **${{ job.status }}**.
+      #       The workflow (sparrow-app for windows) has completed with status: **${{ job.status }}**.
 
-            👉 Check it out latest release here [AppCenter](https://appcenter.ms/users/techdome/apps/Sparrow)!
-          titleBackgroundColor: ${{ job.status }}
-        env:
-          SHOULD_DISPLAY_VIEW_COMMIT_BUTTON: true
+      #       👉 Check it out latest release here [AppCenter](https://appcenter.ms/users/techdome/apps/Sparrow)!
+      #     titleBackgroundColor: ${{ job.status }}
+      #   env:
+      #     SHOULD_DISPLAY_VIEW_COMMIT_BUTTON: true
