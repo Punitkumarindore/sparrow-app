@@ -145,7 +145,7 @@ jobs:
       #     webhookUrl: |
       #      ${{ secrets.TEAMS_INCOMING_WEBHOOK_URL }}
       #     message: |
-      #       🚀 **Build Status Update** 🚀
+      #       🚀 **Build Status Update** 
 
       #       The workflow (sparrow-app for windows) has completed with status: **${{ job.status }}**.
 
