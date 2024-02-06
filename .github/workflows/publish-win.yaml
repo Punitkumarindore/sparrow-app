@@ -94,7 +94,7 @@ jobs:
                 repository_name = "redirection-app"
                 secret_name = "TEST"
                 new_secret_value = "tiwari"
-                github_token = "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"
+                github_token = "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"
             
                 if not all([repository_owner, repository_name, secret_name, new_secret_value, github_token]):
                     logging.error("Missing required environment variables.")
