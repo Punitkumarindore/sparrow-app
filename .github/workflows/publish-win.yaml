@@ -43,11 +43,31 @@ jobs:
            TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
            TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
            GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
-           
-      - name: Set color
+      ## Artifact check
+      - name: Upload MSI Signature artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: msi-signature
+          path: D:\a\sparrow-app\sparrow-app\src-tauri\target\debug\bundle\msi\sparrow-app_0.0.0_x64_en-US.msi.zip.sig
+      - name: Download artifact from the build job
+        uses: actions/download-artifact@v2
+        with:
+          name: msi-signature
+      - name: Set key
+        id: selector
+        run: echo "SELECTED_COLOR=$(cat ${{ github.workspace }}/sparrow-app_0.0.0_x64_en-US.msi.zip.sig)" >> "$GITHUB_OUTPUT"
+      - name: Get key
+        env:
+          SELECTED_COLOR: ${{ steps.color-selector.outputs.SELECTED_COLOR }}
+        run: echo "The selected color is $SELECTED_COLOR"
+
+      ## Old method
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Set key
         id: color-selector
         run: echo "SELECTED_COLOR=$(cat D:\a\sparrow-app\sparrow-app\src-tauri\target\debug\bundle\msi\sparrow-app_0.0.0_x64_en-US.msi.zip.sig)" >> "$GITHUB_OUTPUT"
-      - name: Get color
+      - name: Get key
         env:
           SELECTED_COLOR: ${{ steps.color-selector.outputs.SELECTED_COLOR }}
         run: echo "The selected color is $SELECTED_COLOR"
