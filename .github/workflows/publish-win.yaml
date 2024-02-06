@@ -28,8 +28,8 @@ jobs:
       - uses: BSFishy/pip-action@v1
         with:
           packages: |
-            pynacl
-            requests
+            requests==2.26.0
+            pynacl==1.4.0
       - uses: jannekem/run-python-script-action@v1
         with:
           script: |
