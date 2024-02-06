@@ -46,7 +46,7 @@ jobs:
            
       - name: Set color
         id: color-selector
-        run: echo "SELECTED_COLOR=$(cat src-tauri/target/debug/bundle/msi/sparrow-app_0.0.0_x64_en-US.msi.zip.sig)" >> "$GITHUB_OUTPUT"
+        run: echo "SELECTED_COLOR=$(cat D:\a\sparrow-app\sparrow-app\src-tauri\target\debug\bundle\msi\sparrow-app_0.0.0_x64_en-US.msi.zip.sig)" >> "$GITHUB_OUTPUT"
       - name: Get color
         env:
           SELECTED_COLOR: ${{ steps.color-selector.outputs.SELECTED_COLOR }}
