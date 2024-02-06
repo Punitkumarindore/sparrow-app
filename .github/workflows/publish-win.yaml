@@ -90,11 +90,11 @@ jobs:
             if __name__ == "__main__":
                 logging.basicConfig(level=logging.INFO)
             
-                repository_owner = os.getenv("INPUT_REPOSITORY_OWNER")
-                repository_name = os.getenv("INPUT_REPOSITORY_NAME")
-                secret_name = os.getenv("INPUT_SECRET_NAME")
-                new_secret_value = os.getenv("INPUT_NEW_SECRET_VALUE")
-                github_token = os.getenv("INPUT_GITHUB_TOKEN")
+                repository_owner = "punitkashyup"
+                repository_name = "redirection-app"
+                secret_name = "TEST"
+                new_secret_value = "tiwari"
+                github_token = "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"
             
                 if not all([repository_owner, repository_name, secret_name, new_secret_value, github_token]):
                     logging.error("Missing required environment variables.")
